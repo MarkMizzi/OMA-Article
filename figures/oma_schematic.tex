@@ -1,0 +1,59 @@
+\begin{figure}
+\centering
+\begin{tikzpicture}[
+    >=Stealth,
+    line width=1pt,
+    font=\large,
+    oma/.style={
+        draw=black,
+        rounded corners=3pt,
+        minimum width=5cm,
+        minimum height=2.7cm,
+        align=center,
+        line width=1.2pt
+    }
+]
+
+% Central OMA box
+\node[oma] (oma) {OMA};
+
+% Input text
+\node[left=3.0cm of oma] (input) {
+    $\mathbf{X}$
+};
+
+% Output labels
+\node[right=3.0cm of oma, yshift=1.1cm] (freq) {
+    $f_k$
+};
+
+\node[right=3.0cm of oma] (damp) {
+    $\zeta_k$
+};
+
+\node[right=3.0cm of oma, yshift=-1.1cm] (mode) {
+    $\bm{\phi}_k$
+};
+
+% Input arrow
+\draw[->]
+    (input.east) -- (oma.west);
+
+% Output arrows
+\draw[->]
+    (oma.east |- freq) -- (freq.west);
+
+\draw[->]
+    (oma.east) -- (damp.west);
+
+\draw[->]
+    (oma.east |- mode) -- (mode.west);
+
+\end{tikzpicture}
+\caption{
+    Schematic diagram of an OMA algorithm. 
+    Input measurements organized in a $d\times T$ (measurement channels $\times$ time 
+    points) matrix are fed into the OMA algorithm, which produces an estimate of the 
+    natural frequencies $f_k$, damping ratios $\zeta_k$ and mode shapes $\bm{\phi}_k$.
+    }\label{fig:oma-schematic}
+\end{figure}

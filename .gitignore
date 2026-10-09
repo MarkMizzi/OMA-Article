@@ -1,0 +1,135 @@
+## Core LaTeX/pdfLaTeX auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+## Intermediate documents
+*.dvi
+*.xdv
+*-converted-to.*
+# Uncomment if you don't commit compiled PDFs:
+# *.pdf
+
+## Bibliography auxiliary files (bibtex/biblatex/biber)
+*.bbl
+*.bbl-SAVE-ERROR
+*.bcf
+*.bcf-SAVE-ERROR
+*.blg
+*-blx.aux
+*-blx.bib
+*.run.xml
+
+l auxiliary files
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+*.rubbercache
+rubber.cache
+
+## Build output directories (latexmk -outdir, etc.)
+build/
+out/
+_minted*/
+
+## Glossaries / acronyms / nomenclature
+*.acn
+*.acr
+*.glg
+*.glo
+*.gls
+*.glsdefs
+*.ist
+*.lzo
+*.lzs
+*.slg
+*.slo
+*.sls
+*.nlg
+*.nlo
+*.nls
+
+## Index
+*.idx
+*.ilg
+*.ind
+
+## Beamer
+*.nav
+*.pre
+*.snm
+*.vrb
+
+## Algorithms, listings, theorems, etc.
+*.alg
+*.loa
+*.lol
+*.thm
+*.tdo
+
+## TikZ / pgfplots externalization
+*.auxlock
+*.dpth
+*.md5
+*.figlist
+*.makefile
+*.pyg
+*.pytxcode
+pythontex-files-*/
+
+## minted / knitr / Sweave
+*.pygtex
+*.pygstyle
+*-concordance.tex
+
+## Misc package outputs
+*.xcp
+*.xwm
+*.ptc
+*.mtc
+*.mtc[0-9]*
+*.maf
+*.bmt
+*.upa
+*.upb
+*.brf
+*.loe
+*.listing
+*.soc
+*.vtc
+
+## Editor-specific
+# TeXstudio / Texmaker
+*.bak
+*.backup
+*.sav
+*.tps
+# LyX
+*.lyx~
+# Emacs / AUCTeX
+*~
+\#*\#
+.\#*
+auto/
+# Vim
+*.swp
+*.swo
+# VS Code (LaTeX Workshop)
+.vscode/
+
+## OS files
+.DS_Store
+Thumbs.db
+desktop.ini
