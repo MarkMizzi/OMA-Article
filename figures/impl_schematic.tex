@@ -1,0 +1,96 @@
+\begin{figure}[t]
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[
+    >=Stealth,
+    line width=0.8pt,
+    font=\small,
+    step/.style={
+        draw=black,
+        align=left,
+        text width=#1,
+        inner sep=6pt
+    },
+    proc/.style={
+        cloud,
+        draw=black,
+        cloud puffs=13,
+        cloud puff arc=110,
+        align=center,
+        inner sep=1pt
+    },
+    db/.style={
+        inner sep=0pt,
+        minimum width=1.1cm,
+        minimum height=1.3cm
+    },
+    database/.pic={
+        \draw (-0.55,0.5) -- (-0.55,-0.5) arc (180:360:0.55 and 0.15) -- (0.55,0.5);
+        \draw (0,0.5) ellipse (0.55 and 0.15);
+        \draw (-0.55,0.17) arc (180:360:0.55 and 0.15);
+        \draw (-0.55,-0.17) arc (180:360:0.55 and 0.15);
+    },
+    actor/.pic={
+        \draw (0,0.3) circle (0.07);
+        \draw (0,0.23) -- (0,0.02);
+        \draw (-0.13,0.16) -- (0.13,0.16);
+        \draw (0,0.02) -- (-0.12,-0.12);
+        \draw (0,0.02) -- (0.12,-0.12);
+    }
+]
+
+% ---------------- Setup ----------------
+\draw (0.55,7.6) rectangle (14.65,11.1);
+\node[anchor=north east] at (14.55,11.0) {Setup};
+
+% Users
+\pic at (1.8,10.45) {actor};
+\pic at (7.0,10.45) {actor};
+\pic at (12.35,10.45) {actor};
+\draw[->] (1.8,10.15) -- (1.8,9.6);
+\draw[->] (7.0,10.15) -- (7.0,9.65);
+\draw[->] (12.35,10.45) -- (12.35,9.6);
+
+% Setup steps
+\node[step=3.0cm, minimum height=1.4cm, anchor=north west] (channels) at (0.75,9.5)
+    {Choose measurement channels + other params};
+\node[step=3.3cm, minimum height=1.45cm, anchor=north west] (window) at (5.2,9.65)
+    {Choose representative data window};
+\node[proc, minimum width=1.9cm, minimum height=1.6cm] (fsdd) at (10.45,9.1) {FSDD};
+\node[step=1.85cm, inner sep=2pt, minimum height=1.3cm, anchor=north west] (estimate) at (12.35,9.75)
+    {Choose\\estimate of\\modal params};
+
+\draw[->] (channels.east |- 0,8.9) -- (window.west |- 0,8.9);
+\draw[->] (window.east |- fsdd) -- (fsdd.west);
+\draw[->] (fsdd.east) -- node[above] {MPE} (estimate.west |- fsdd.east);
+
+% ---------------- Database ----------------
+\node[db] (db) at (15.0,6.75) {};
+\pic at (db.center) {database};
+
+\draw[->] (estimate.east |- 0,9.15) -| (db.north);
+
+% ---------------- Every minute ----------------
+\draw (6.5,3.2) rectangle (13.6,6.55);
+\node[anchor=south west] at (6.6,3.35) {Every minute};
+
+\node[proc, minimum width=2.1cm, minimum height=1.7cm] (ssi) at (7.9,5.35) {SSI-\\COV};
+\node[proc, minimum width=2.3cm, minimum height=1.8cm] (disp) at (11.95,5.2) {Dispatcher};
+
+\draw[->] (disp.172) -- node[above, align=left] {New window\\to compute} (ssi.east |- disp.172);
+
+% SSI-COV results stored in database
+\draw[->] (ssi.west) -- (6.2,5.35) |- (db.west |- 0,6.95);
+
+% Database feeds dispatcher
+\draw[->] (db.south) |- (disp.5);
+
+% New measurement data
+\node[align=left, anchor=north west] (newdata) at (14.4,4.85)
+    {New\\measurement\\data};
+\draw[->] (newdata.north west |- disp.-25) -- (disp.-25);
+
+\end{tikzpicture}%
+}
+\caption{High level schematic overview of our OMA implementation.}\label{fig:impl-schematic}
+\end{figure}

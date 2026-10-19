@@ -1,5 +1,6 @@
-\begin{figure}
+\begin{figure}[b]
 \centering
+\resizebox{\columnwidth}{!}{%
 \begin{tikzpicture}[
     >=Stealth,
     line width=1pt,
@@ -49,7 +50,8 @@
 \draw[->]
     (oma.east |- mode) -- (mode.west);
 
-\end{tikzpicture}
+\end{tikzpicture}%
+}
 \caption{
     Schematic diagram of an OMA algorithm. 
     Input measurements organized in a $d\times T$ (measurement channels $\times$ time 

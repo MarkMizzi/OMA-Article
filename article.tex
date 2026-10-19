@@ -1,7 +1,7 @@
-\documentclass[11pt]{article}
+\documentclass[journal,a4paper]{IEEEtran}
 
-% Page layout
-\usepackage[a4paper,margin=1in]{geometry}
+% Graphics
+\usepackage{graphicx}
 
 % Mathematics
 \usepackage{amsmath}
@@ -10,11 +10,10 @@
 \usepackage{mathtools}
 \usepackage{bm}
 \usepackage{tikz}
-\usetikzlibrary{positioning,arrows.meta}
+\usetikzlibrary{positioning,arrows.meta,shapes.symbols,shapes.geometric}
 
 % Typography
 \usepackage[T1]{fontenc}
-\usepackage{lmodern}
 \usepackage{microtype}
 
 % References and links
@@ -23,12 +22,15 @@
 \addbibresource{references.bib}
 
 \title{OMA in Senmos: Enabling a new level of analysis}
-\author{Mark Mizzi}
-\date{\today}
+\author{Mark~Mizzi}
 
 \begin{document}
 
 \maketitle
+
+\begin{abstract}
+    Operational Modal Analysis (OMA) is a powerful technique which allows engineers to model vibrations in complex man-made structures based on measurement data gathered from accelerometer arrays. In this work, we present our implementation of OMA in the Senmos monitoring platform as well as potential applications. Our main contribution is improved ease of use compared to traditional software solutions for OMA. We compare results obtained from our OMA implementation with the more traditional modeling technique of finite element analysis (FEM).
+\end{abstract}
 
 \section{Introduction}
 
@@ -42,11 +44,9 @@ An OMA technique is an algorithm which converts measurement signals gathered fro
 
 Natural frequencies definition, damping modes definition, mode shapes definition. Note that OMA algorithms are windowed algorithms; they produce results for a window of measurements with a specified length, typically chosen on the order of 30 minutes to a few hours.
 
-% TODO: Calibration
 The variety of external forces which can interact with a structure greatly complicates the task of separating physical characteristics like natural frequencies from temporary forced vibrations caused by these forces. Due to this, every OMA algorithm requires some form of calibration to give accurate results. For instance, algorithms based on frequency-domain decomposition (FDD) produce transient natural frequencies under most circumstances. Fortunately, Senmos exposes methods by which even a non-expert can quickly identify which natural frequencies produced are transient and which are genuine.
 
-
-The remainder of this article is structured as follows: Section~\ref{sec:theory} discusses theoretical background. Section~\ref{sec:practical} discusses practical applications of OMA in structural health monitoring, with a concrete running example of a wind-turbine monitoring project. Section~\ref{sec:further} relates OMA to other modeling techniques and argues for a holistic approach using multiple modeling techniques. Section~\ref{sec:conclusion} gives concluding remarks. The practically-oriented reader who is already familiar with the rudiments of OMA can skip Section~\ref{sec:theory}.
+The remainder of this article is structured as follows: Section~\ref{sec:theory} discusses theoretical background. Section~\ref{sec:practical} discusses the high level organization of our OMA implementation, together with its practical applications in structural health monitoring. We also present a concrete example of a wind-turbine monitoring project. Section~\ref{sec:further} relates OMA to other modeling techniques and argues for a holistic approach using multiple modeling techniques. Section~\ref{sec:conclusion} gives concluding remarks. The practically-oriented reader who is already familiar with the rudiments of OMA can skip Section~\ref{sec:theory}.
 
 \section{Theoretical Backgound}\label{sec:theory}
 
@@ -115,9 +115,18 @@ It can be shown that
 \]
 where $\mathbf{G}$ is the matrix with coefficients 
 
-\section{Applications}\label{sec:practical}
+\section{Implementation}\label{sec:practical}
 
-In this section we present applications of OMA techniques to structural health monitoring (SHM), and showcase the ease with which these applications can be realized in our implementation of OMA within the Senmos cloud monitoring platform. Our work is based on the open source PyOMA2 package~\cite{pyoma2} on top of which we have developed a friendly user interface which is accessible to non-experts with minimal training.
+In this section we present our implementation of OMA, showcasing its ease of use and its application to structural health monitoring with a concrete example of a wind turbine project. Our work builds on the open source PyOMA2 package~\cite{pyoma2} by adding a user-friendly web interface which can be used by non-experts with minimal training. Figure~\ref{fig:impl-schematic} depicts the high level organization of our implementation.
+
+\input{figures/impl_schematic.tex}
+
+Key abstractions from Senmos such as sensor channels and sensors (groups of channels) are reused in the context of OMA; each frequency and damping mode is mapped to a sensor channel, and the user is given an option of automatically creating all required channels under a new sensor object. Reusing these abstractions automatically allows the user to apply signal processing algorithms available in Senmos to OMA outputs directly, as well as plot them.
+
+Senmos aggregates data from a large number of heterogenous sources. In practice this means that measurement data often arrives out of order, with a time-varying delay, or not at all. Several complications requiring non-trivial design decisions arise due to the need to handle these issues; all of these are handled by our dispatcher implementation. The database tracks a marker with the end date of the last window processed for each OMA configuration. When the dispatcher runs a new refresh cycle, it calculates which OMA configurations may have new windows to process based on this marker and the window size/boundary configured by the user. Next, candidate windows are handed to a worker pool for processing. The number of candidate windows dispatched per configuration is limited to the last $N$ windows where $N$ is set to a suitable value. The assigned worker collects all measurement data falling inside the window and performs SSI-COV (c.f. Section~\ref{sec:ssi}) on it, aborting if the fill factor is below 10\%.
+
+Since there is no reliable way to distinguish between a period of missing data and a large delay in sending data, the dispatcher also resets the marker of configurations which have fallen behind by more than $M$ days to a more recent date, so that such configurations catch up. A system administrator can manually recompute historical windows which have been skipped due to this design.
+
 
 
 % Emphasize ease of use on Senmos, contrast with what we had before on Senmos with peak picking
@@ -131,7 +140,7 @@ Given that Senmos features the ability to set range-based alarms, we see this as
 
 Another, more fundamental application is the use of OMA to model and visualize vibrations on the structure. 
 
-\section{OMA vs. other modeling techniques}
+\section{OMA vs. other modeling techniques}\label{sec:further}
 
 % Compare to weaker techniques like peak picking, why do we need OMA?
 % Compare to FEM. How precisely does it match FEM for our example?
