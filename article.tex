@@ -44,10 +44,7 @@ Each natural frequency $f_k$ also has an associated mode shape $\bm{\phi}_k$ whi
 
 % OMA algorithms are windowed algorithms; they produce results for a window of measurements with a specified length, typically chosen on the order of 30 minutes to a few hours.
 
-% TODO: Wrap up introduction by specifying contributions
-% OMA is hard, we have created a user interface which is easy for a non-expert to use by managing a lot of the book-keeping automatically
-
-The variety of external forces which can interact with a structure greatly complicates the task of separating physical characteristics like natural frequencies from temporary forced vibrations caused by these forces. Due to this, every OMA algorithm requires some form of calibration to give accurate results. For instance, algorithms based on frequency-domain decomposition (FDD) produce transient natural frequencies under most circumstances. Fortunately, Senmos exposes methods by which even a non-expert can quickly identify which natural frequencies produced are transient and which are genuine.
+Existing OMA implementations~\cite{pyoma2} are obtuse and require ad-hoc scripting to set up for specific projects. The resulting source code is often not applicable to another project, requiring a duplication of efforts for every new project. Furthermore, no functionality is provided to run OMA continuously on an incoming stream of measurement data. All of the above collude to render OMA inaccessible to non-experts and domain experts who may not be intimately familiar with computer programming. Our implementation addresses these issues by providing a user-friendly interface built on pyOMA v2~\cite{pyoma2}.
 
 The remainder of this article is structured as follows: Section~\ref{sec:theory} discusses theoretical background. Section~\ref{sec:practical} discusses the high level organization of our OMA implementation and its practical applications in SHM. Section~\ref{sec:further} relates OMA to other modeling techniques. Section~\ref{sec:conclusion} gives concluding remarks.
 
