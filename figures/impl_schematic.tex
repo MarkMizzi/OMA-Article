@@ -5,11 +5,13 @@
     >=Stealth,
     line width=0.8pt,
     font=\small,
-    step/.style={
+    box/.style={
         draw=black,
         align=left,
-        text width=#1,
-        inner sep=6pt
+        text width=2.7cm,
+        minimum height=1.6cm,
+        inner sep=4pt,
+        execute at begin node={\hyphenpenalty=10000}
     },
     proc/.style={
         cloud,
@@ -17,7 +19,9 @@
         cloud puffs=13,
         cloud puff arc=110,
         align=center,
-        inner sep=1pt
+        inner sep=1pt,
+        minimum width=2.3cm,
+        minimum height=1.8cm
     },
     db/.style={
         inner sep=0pt,
@@ -44,38 +48,39 @@
 \node[anchor=north east] at (14.55,11.0) {Setup};
 
 % Users
-\pic at (1.8,10.45) {actor};
-\pic at (7.0,10.45) {actor};
-\pic at (12.35,10.45) {actor};
-\draw[->] (1.8,10.15) -- (1.8,9.6);
-\draw[->] (7.0,10.15) -- (7.0,9.65);
-\draw[->] (12.35,10.45) -- (12.35,9.6);
+\pic at (2.3,10.45) {actor};
+\pic at (5.6,10.45) {actor};
+\pic at (12.7,10.45) {actor};
 
 % Setup steps
-\node[step=3.0cm, minimum height=1.4cm, anchor=north west] (channels) at (0.75,9.5)
+\node[box] (channels) at (2.3,8.95)
     {Choose measurement channels + other params};
-\node[step=3.3cm, minimum height=1.45cm, anchor=north west] (window) at (5.2,9.65)
+\node[box] (window) at (5.6,8.95)
     {Choose representative data window};
-\node[proc, minimum width=1.9cm, minimum height=1.6cm] (fsdd) at (10.45,9.1) {FSDD};
-\node[step=1.85cm, inner sep=2pt, minimum height=1.3cm, anchor=north west] (estimate) at (12.35,9.75)
+\node[proc] (fsdd) at (8.9,8.95) {FSDD};
+\node[box] (estimate) at (12.7,8.95)
     {Choose\\estimate of\\modal params};
 
-\draw[->] (channels.east |- 0,8.9) -- (window.west |- 0,8.9);
-\draw[->] (window.east |- fsdd) -- (fsdd.west);
-\draw[->] (fsdd.east) -- node[above] {MPE} (estimate.west |- fsdd.east);
+\draw[->] (2.3,10.15) -- (channels.north);
+\draw[->] (5.6,10.15) -- (window.north);
+\draw[->] (12.7,10.15) -- (estimate.north);
+
+\draw[->] (channels.east) -- (window.west);
+\draw[->] (window.east) -- (fsdd.west);
+\draw[->] (fsdd.east) -- node[above] {MPE} (estimate.west);
 
 % ---------------- Database ----------------
 \node[db] (db) at (15.0,6.75) {};
 \pic at (db.center) {database};
 
-\draw[->] (estimate.east |- 0,9.15) -| (db.north);
+\draw[->] (estimate.east) -| (db.north);
 
 % ---------------- Every minute ----------------
 \draw (6.5,3.2) rectangle (13.6,6.55);
 \node[anchor=south west] at (6.6,3.35) {Every minute};
 
-\node[proc, minimum width=2.1cm, minimum height=1.7cm] (ssi) at (7.9,5.35) {SSI-\\COV};
-\node[proc, minimum width=2.3cm, minimum height=1.8cm] (disp) at (11.95,5.2) {Dispatcher};
+\node[proc] (ssi) at (7.9,5.35) {SSI-\\COV};
+\node[proc] (disp) at (11.95,5.2) {Dispatcher};
 
 \draw[->] (disp.172) -- node[above, align=left] {New window\\to compute} (ssi.east |- disp.172);
 

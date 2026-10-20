@@ -93,12 +93,12 @@ While precise and robust, FDD-based methods require manual selection of natural 
 
 \subsection{SSI-Based Methods}\label{sec:ssi}
 
-SSI-based methods can operate on both the time and frequency domains of a system. In this section we focus on SSI-COV, which operates on the time domain and is implemented in Senmos. 
+SSI-based methods~\cite{ssi} can operate on both the time and frequency domains of a system. In this section we focus on SSI-COV, which operates on the time domain and is implemented in Senmos. 
 
 SSI-based methods model the (discrete-time) dynamics of the system using the two linear equations:
 \begin{align*}
     \mathbf{x}_{t+1} = \mathbf{A}\mathbf{x}_{t} + \mathbf{w}_t \\
-    \mathbf{y}_{t+1} = \mathbf{C}\mathbf{x}_{t}
+    \mathbf{y}_{t+1} = \mathbf{C}\mathbf{x}_{t} + \mathbf{v}_t
 \end{align*}
 where $\mathbf{x}_t, \mathbf{y}_t$ are the system state and measurements collected at time $t$ respectively, while $\mathbf{w}_t, \mathbf{v}_t$ are random noise signals caused by external forces and limited measurement precision respectively. They are typically assumed to be white noise.
 
@@ -111,9 +111,29 @@ SSI-COV is based on the covariance matrices $\mathbf{R}_i$, defined for each row
 
 It can be shown that
 \[
-\mathbf{R} = \mathbf{C}\mathbf{A}^{i-1}\mathbf{G}
+\mathbf{R}_i = \mathbf{C}\mathbf{A}^{i-1}\mathbf{G}
 \]
-where $\mathbf{G}$ is the matrix with coefficients 
+where $\mathbf{G} := \sum_{t=1}^{T-1}\mathbf{x}_{t+1}\mathbf{y}_t^T$. From this identity it follows that the block-Toeplitz matrix
+\[
+\mathbf{T}_{1|i} := \begin{pmatrix}
+\mathbf{R}_i     & \mathbf{R}_{i-1} & \cdots & \mathbf{R}_1 \\
+\mathbf{R}_{i+1} & \mathbf{R}_i     & \cdots & \mathbf{R}_2 \\
+\vdots                 & \vdots                 & \ddots & \vdots             \\
+\mathbf{R}_{2i-1}& \mathbf{R}_{2i-2}& \cdots & \mathbf{R}_i
+\end{pmatrix}
+\]
+satisfies
+\[
+\mathbf{T}_{1|i} \;=\; \underbrace{\begin{pmatrix}\mathbf{C}\\\mathbf{C}\mathbf{A}\\\mathbf{C}\mathbf{A}^2\\\vdots\\\mathbf{C}\mathbf{A}^{i-1}\end{pmatrix}}_{\boldsymbol{\mathcal{O}}_i \,\in\, \mathbb{R}^{li\times n}}\;\;\underbrace{\begin{pmatrix}\mathbf{A}^{i-1}\mathbf{G} & \mathbf{A}^{i-2}\mathbf{G} & \cdots & \mathbf{A}\mathbf{G} & \mathbf{G}\end{pmatrix}}_{\boldsymbol{\mathcal{C}}_i \,\in\, \mathbb{R}^{n\times li}}
+\]
+where $n$ is the number of modes in the system.
+
+The core idea of SSI-COV is to use SVD to decompose $\mathbf{T}_{1|i} \approx \mathbf{U}\mathbf{S}\mathbf{V}^T = (\mathbf{U}\mathbf{S}^{1/2})(\mathbf{S}^{1/2}\mathbf{V}^T)$ where the equality is approximate as we only keep the top $n$ singular values, and $\mathbf{S}^{1/2}$ denotes the matrix obtained from $\mathbf{S}$ by taking $\sqrt{\cdot}$ of each element.
+
+We then approximate $\mathcal{O}_i \approx \mathbf{U}\mathbf{S}^{1/2}$, which immediately yields an approximation of $\mathbf{C}$ (from the first block of $\mathcal{O}_i$) and a linear system which can be solved for $\mathbf{A}$ (by considering the relationship between blocks of $\mathcal{O}_i$).
+
+Note that one prerequisite for applying SSI-COV is to know in advance the number of modes. Since this is an unknown, implementations typically perform the analysis for multiple values of $n$, and then allow the user to choose the most plausible $n$ through a visualization called a stabilization diagram~\cite{Peeters01022000}.
+We opt instead to use MPE plots from FSDD to allow the user to pick $n$ once during setup.
 
 \section{Implementation}\label{sec:practical}
 
@@ -127,18 +147,15 @@ Senmos aggregates data from a large number of heterogenous sources. In practice 
 
 Since there is no reliable way to distinguish between a period of missing data and a large delay in sending data, the dispatcher also resets the marker of configurations which have fallen behind by more than $M$ days to a more recent date, so that such configurations catch up. A system administrator can manually recompute historical windows which have been skipped due to this design.
 
+We see two potential applications for our OMA implementation:
+\begin{enumerate}
+    \item Sudden changes in natural frequencies predicted by OMA are a robust indicator of structural damage. % TODO CITE
+    Given that Senmos features the ability to set range-based alarms, we see this as a valuable application of our implementation to SHM.
+    Furthermore, alarms are easy for non-experts to configure and understand, making our solution uniquely appealing for this use case.
 
+    \item Another, more fundamental application is the use of OMA to model and visualize vibrations on the structure. % TODO Flesh this out, explain dashboard feature
 
-% Emphasize ease of use on Senmos, contrast with what we had before on Senmos with peak picking
-
-\subsection{Alarms}
-
-Sudden changes in natural frequencies predicted by OMA are a robust indicator of structural damage. % CITE
-Given that Senmos features the ability to set range-based alarms, we see this as a valuable application of our implementation to SHM.
-
-\subsection{Modeling}
-
-Another, more fundamental application is the use of OMA to model and visualize vibrations on the structure. 
+\end{enumerate}
 
 \section{OMA vs. other modeling techniques}\label{sec:further}
 
