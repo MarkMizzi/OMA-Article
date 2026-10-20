@@ -22,7 +22,9 @@
 \addbibresource{references.bib}
 
 \title{OMA in Senmos: Enabling a new level of analysis}
-\author{Mark~Mizzi}
+\author{Mark~Mizzi\\
+Software Engineer, KI Monitoring\\
+\texttt{mmi@ki.dk}}
 
 \begin{document}
 
@@ -34,37 +36,38 @@
 
 \section{Introduction}
 
-Operational Modal Analysis (OMA) encompasses a set of techniques developed to calculate and visualize modal vibrations of structures from real-world measurements. In this article we explore OMA techniques recently added to the Senmos cloud platform, and the ways in which they can be used to gain a better understanding of how structures like bridges, chimneys and wind turbines interact with external forces. 
+Operational Modal Analysis (OMA) encompasses a set of techniques developed to compute and visualize modal vibrations of structures from real-world measurements. In this article we present an implementation of OMA built on the Senmos structural health monitoring (SHM) platform and its potential applications. 
 
-Every structure has a set of natural frequencies which it tends to vibrate at when excited by an outside force. For instance, if a swing is lifted upwards and then let go, it swings back and forth at a certain rate which is determined by the length of its ropes. The same phenomenon is at play with more complex structures, although there is no easy way to calculate the natural frequencies based on physical characteristics of these structures. For each natural frequency $f_k$, there is also an associated mode shape $\bm{\phi}_k$ which dictates the relative amplitude and phase (encoded as a complex number) at which each measurement point on a structure oscillates. A damping ratio $\zeta_k$ quantifies how quickly oscillation in a specific mode decays, relative to the natural frequency $f_k$. For instance, a damping ratio of $0.01$ indicates that after one oscillation, the amplitude has decreased by $0.01 \times 2\pi \approx 6.3\%$.
+Every structure has a set of natural frequencies which it tends to vibrate at when excited by an outside force. For instance, if a swing is lifted upwards and released, it swings back and forth at a rate determined by the length of its ropes. The same phenomenon occurs in more complex structures, but modeling natural frequencies from physical characteristics becomes significantly more complex. Furthermore, physical characteristics may change over time due to weathering, modifications, etc., requiring costly changes to such models. OMA algorithms address both of these issues by estimating natural frequencies from a window of measurement signals gathered at several points of the structure.
 
-An OMA technique is an algorithm which converts measurement signals gathered from arrays of accelerometers placed at various points on a structure into natural frequencies, damping modes, and mode shapes (see Figure~\ref{fig:oma-schematic}).
+Each natural frequency $f_k$ also has an associated mode shape $\bm{\phi}_k$ which dictates the relative amplitude and phase (encoded as a complex number) at which each measurement point on a structure oscillates. The damping ratio $\zeta_k$ quantifies how quickly oscillation in a specific mode decays, relative to the natural frequency $f_k$. For instance, a damping ratio of $0.01$ indicates that after one oscillation, the amplitude has decreased by $0.01 \times 2\pi \approx 6.3\%$. OMA algorithms typically produce estimates of mode shapes and damping ratios in addition to natural frequencies.
 
-\input{figures/oma_schematic.tex}
+% OMA algorithms are windowed algorithms; they produce results for a window of measurements with a specified length, typically chosen on the order of 30 minutes to a few hours.
 
-Natural frequencies definition, damping modes definition, mode shapes definition. Note that OMA algorithms are windowed algorithms; they produce results for a window of measurements with a specified length, typically chosen on the order of 30 minutes to a few hours.
+% TODO: Wrap up introduction by specifying contributions
+% OMA is hard, we have created a user interface which is easy for a non-expert to use by managing a lot of the book-keeping automatically
 
 The variety of external forces which can interact with a structure greatly complicates the task of separating physical characteristics like natural frequencies from temporary forced vibrations caused by these forces. Due to this, every OMA algorithm requires some form of calibration to give accurate results. For instance, algorithms based on frequency-domain decomposition (FDD) produce transient natural frequencies under most circumstances. Fortunately, Senmos exposes methods by which even a non-expert can quickly identify which natural frequencies produced are transient and which are genuine.
 
-The remainder of this article is structured as follows: Section~\ref{sec:theory} discusses theoretical background. Section~\ref{sec:practical} discusses the high level organization of our OMA implementation, together with its practical applications in structural health monitoring. We also present a concrete example of a wind-turbine monitoring project. Section~\ref{sec:further} relates OMA to other modeling techniques and argues for a holistic approach using multiple modeling techniques. Section~\ref{sec:conclusion} gives concluding remarks. The practically-oriented reader who is already familiar with the rudiments of OMA can skip Section~\ref{sec:theory}.
+The remainder of this article is structured as follows: Section~\ref{sec:theory} discusses theoretical background. Section~\ref{sec:practical} discusses the high level organization of our OMA implementation and its practical applications in SHM. Section~\ref{sec:further} relates OMA to other modeling techniques. Section~\ref{sec:conclusion} gives concluding remarks.
 
 \section{Theoretical Backgound}\label{sec:theory}
 
-OMA techniques can be broadly classified into frequency-domain decomposition (FDD) methods, and stochastic subspace identification (SSI) methods, which we will discuss in turn. % TODO: Refine
+OMA techniques can be broadly classified into frequency-domain decomposition (FDD) methods, and stochastic subspace identification (SSI) methods.
 
 \subsection{FDD-Based Methods}\label{sec:fdd}
 
-FDD-based methods were introduced in the early 2000s~\cite{Brincker2000OutputonlyMA,Brincker2001DampingEB} and operate on the frequency domain representation of measurement signals, typically the power spectral density (PSD) matrix $\mathbf{G}_{yy}\left(\omega \right)$ which collects all cross-spectral power densities.
+FDD-based methods~\cite{Brincker2000OutputonlyMA,Brincker2001DampingEB} operate on a frequency domain representation of measurement signals, typically the power spectral density (PSD) matrix $\mathbf{G}_{yy}\left(\omega \right)$ which collects all cross-spectral power densities.
 
-Under mild conditions, the input PSD matrix ${\mathbf{G}}_{\mathrm{xx}}\left(\omega \right)$ can be related to the output PSD matrix ${\mathbf{G}}_{yy}\left(\omega \right)$ (corresponding to the actual sensor measurements) by the following equation:
+Under mild conditions, the input PSD matrix ${\mathbf{G}}_{\mathrm{xx}}\left(\omega \right)$ can be related to the output PSD matrix ${\mathbf{G}}_{yy}\left(\omega \right)$ (corresponding to the actual sensor measurements) by:
 \[
 \mathbf{G}_{yy}\left(\omega \right) = 
 \mathbf{H}^{\dagger}\left(\omega \right)\mathbf{G}_{xx}\left(\omega \right)\mathbf{H}\left(\omega \right)
 \]
-where $\mathbf{H}(\omega)$ is the unknown Frequency Response Function (FRF) matrix which determines the system-environment interaction.
+where $\mathbf{H}(\omega)$ is the unknown Frequency Response Function (FRF) matrix determining the system-environment interaction.
 
-At a given frequency $\omega$, only 1-2 modes will typically contribute significantly to the system output. Assuming that external forces have a PSD corresponding to white noise, one can derive the following equation~\cite{Brincker2000OutputonlyMA}: 
-\[
+At a given frequency $\omega$, only 1-2 modes contribute significantly to the system output. Assuming that external forces have a white noise spectrum~\cite{Brincker2000OutputonlyMA}, 
+\begin{equation}
 \bar{G}_{yy}(\omega)
 =
 \sum_{k}
@@ -74,37 +77,34 @@ At a given frequency $\omega$, only 1-2 modes will typically contribute signific
 \frac{\bar{d}_k \bar{\bm{\phi}}_k \bar{\bm{\phi}_k^{T}}}
 {j\omega-\bar{\lambda}_k}
 \right)
-\]
-where $\lambda_k = 2\pi f_k\left(-\zeta_k + j\right)$, $d_k$ determines the relative contribution of each mode, and the sum is over all significant modes.
+\label{eq:fsdd-decomp}
+\end{equation}
+where $\lambda_k = 2\pi f_k\left(-\zeta_k + j\right)$, $d_k$ is the relative contribution of each mode, and the sum is over \textit{significant} modes.
 
-Supposing that natural frequencies can be clearly distinguished, it is easy to see that $\bar{G}_{yy}(\omega) \to \frac{d_k \bm{\phi}_k \bm{\phi}_k^{T}}{2\pi f_k\zeta_k}$ as $\omega$ approaches some natural frequency (measured in angular units) $2\pi f_k$. In this case $\bm{\phi}_k$ will correspond to the largest left singular vector of $\bar{G}_{yy}(\omega)$. Furthermore, since $\bar{G}_{yy}(\omega)$ is approximately a rank-1 matrix under these conditions, the corresponding singular value (SV) is much larger than the rest of the spectrum. By a similar analysis, one can show that if two (or more) natural frequencies are close to one another, the corresponding mode shapes are proportional to the largest two left singular vectors of $\bar{G}_{yy}(\omega)$ and the corresponding singular values are much larger than the rest of the spectrum.
+Supposing natural frequencies have clearly separable spectral peaks, Eq.~\eqref{eq:fsdd-decomp} implies that $\bar{G}_{yy}(\omega) \to \frac{d_k \bm{\phi}_k \bm{\phi}_k^{T}}{2\pi f_k\zeta_k}$ as $\omega \to 2\pi f_k$ where $f_k$ is a natural frequency. $\bm{\phi}_k$ will then correspond to the largest left singular vector of $\bar{G}_{yy}(\omega)$. Furthermore, since $\bar{G}_{yy}(\omega)$ is then $\approx$ rank-1, the corresponding singular value (SV) is much larger than the rest of the spectrum. By a similar analysis, one can show that if $k\ge 2$ natural frequencies have spectral peaks clustered around $f$, the corresponding mode shapes are proportional to the largest $k$ left singular vectors of $\bar{G}_{yy}(2\pi f)$ and the corresponding SVs dominate the spectrum.
 
-FDD based methods discretize the frequency spectrum and compute the singular-value decomposition (SVD) at each point. A modal parameter estimation (MPE) plot is then produced, depicting the first few largest singular values (normalized to the $[0,1]$ range relative to the maximum singular value) against the frequency $f$. The first and second scenarios highlighted above will be clearly visible in such a plot as a peak reaching $\approx 1.0$ in the first SV and large peaks in the first and second SVs which together sum to $\approx 1.0$ respectively.
-
-Figure~\ref{fig:sv-plot} shows an MPE plot for our running example of a wind turbine, depicting the peak observed at an isolated natural frequency.
+FDD-based methods discretize the frequency spectrum, compute the singular-value decomposition (SVD) at each point, and then output a modal parameter estimation (MPE) plot depicting the largest $M$ singular values (normalized to the $[0,1]$ range) against the frequency $f$. The first and second scenarios highlighted above are clearly visible in such a plot as a peak reaching $\approx 1.0$ in the first SV and large peaks in the first $k$ SVs resp. Figure~\ref{fig:sv-plot} shows an example MPE plot produced by our implementation.
 
 \input{figures/FDD-SV-plot.tex}
 
-Once natural frequencies have been selected, the corresponding mode shapes can be obtained from the SVD decomposition computed for those frequencies, and the damping ratios can be computed from the equations shown above.
+Once natural frequencies are selected, corresponding mode shapes can be obtained from the SVD, and damping ratios can be computed from the equations shown above.
 
-It is important to note that we have restricted our overview to the simplest FDD method. Further improvements have been made to the basic scheme such as FSDD (the variant used in our implementation), which ... % Explain contribution and cite paper
+Further improvements have been made to the basic scheme presented above such as frequency-spatial domain decomposition (FSDD)~\cite{fsdd} which we use in our implementation.
 
-While precise and robust, FDD-based methods require manual selection of natural frequencies from MPE plots which can be challenging and require expert identification. For this reason, we chose to use them only as a calibration technique; when a new project OMA is set up, FSDD is performed on the project data once to provide an estimate of the natural frequencies, which are then fed to the more automatable SSI-COV method (c.f. Section~\ref{sec:ssi}).
+While precise and robust, FDD-based methods require manual selection of natural frequencies which can be time-consuming and requires expert identification for complicated scenarios, making it unsuitable for long-term, automatic analysis. We use FSDD as a one-time calibration step when a new project is configured, with the SSI-COV method (c.f. Section~\ref{sec:ssi}) used for long-term analysis.
 
 \subsection{SSI-Based Methods}\label{sec:ssi}
 
-SSI-based methods~\cite{ssi} can operate on both the time and frequency domains of a system. In this section we focus on SSI-COV, which operates on the time domain and is implemented in Senmos. 
-
-SSI-based methods model the (discrete-time) dynamics of the system using the two linear equations:
+SSI-based methods~\cite{ssi} model the (discrete-time) dynamics of the system using two linear equations:
 \begin{align*}
     \mathbf{x}_{t+1} = \mathbf{A}\mathbf{x}_{t} + \mathbf{w}_t \\
     \mathbf{y}_{t+1} = \mathbf{C}\mathbf{x}_{t} + \mathbf{v}_t
 \end{align*}
-where $\mathbf{x}_t, \mathbf{y}_t$ are the system state and measurements collected at time $t$ respectively, while $\mathbf{w}_t, \mathbf{v}_t$ are random noise signals caused by external forces and limited measurement precision respectively. They are typically assumed to be white noise.
+where $\mathbf{x}_t, \mathbf{y}_t$ are the system state and measurements collected at time $t$, while $\mathbf{w}_t, \mathbf{v}_t$ are random (white) noise signals caused by external forces and limited measurement precision resp.
 
 It is convenient to collect $\{\mathbf{x}_{t}\}_{t=1}^T$ and $\{\mathbf{y}_{t}\}_{t=1}^T$ into $d\times T$ matrices $\mathbf{X}$ and $\mathbf{Y}$.
 
-SSI-COV is based on the covariance matrices $\mathbf{R}_i$, defined for each row of $\mathbf{Y}$. For row $\mathbf{y}^{(i)}$ of $\mathbf{Y}$, the covariance matrix is defined as:
+The SSI-COV algorithm is based on covariance matrices $\mathbf{R}_i$, defined for each row $\mathbf{y}^{(i)}$ of $\mathbf{Y}$ as:
 \[
 \mathbf{R}_i = \mathbf{y}^{(i)}\left(\mathbf{y}^{(i)}\right)^T
 \]
@@ -113,26 +113,33 @@ It can be shown that
 \[
 \mathbf{R}_i = \mathbf{C}\mathbf{A}^{i-1}\mathbf{G}
 \]
-where $\mathbf{G} := \sum_{t=1}^{T-1}\mathbf{x}_{t+1}\mathbf{y}_t^T$. From this identity it follows that the block-Toeplitz matrix
+where $\mathbf{G} := \sum_{t=1}^{T-1}\mathbf{x}_{t+1}\mathbf{y}_t^T$. It follows that the block-Toeplitz matrix
 \[
 \mathbf{T}_{1|i} := \begin{pmatrix}
 \mathbf{R}_i     & \mathbf{R}_{i-1} & \cdots & \mathbf{R}_1 \\
 \mathbf{R}_{i+1} & \mathbf{R}_i     & \cdots & \mathbf{R}_2 \\
-\vdots                 & \vdots                 & \ddots & \vdots             \\
+\vdots           & \vdots           & \ddots & \vdots       \\
 \mathbf{R}_{2i-1}& \mathbf{R}_{2i-2}& \cdots & \mathbf{R}_i
 \end{pmatrix}
 \]
 satisfies
 \[
-\mathbf{T}_{1|i} \;=\; \underbrace{\begin{pmatrix}\mathbf{C}\\\mathbf{C}\mathbf{A}\\\mathbf{C}\mathbf{A}^2\\\vdots\\\mathbf{C}\mathbf{A}^{i-1}\end{pmatrix}}_{\boldsymbol{\mathcal{O}}_i \,\in\, \mathbb{R}^{li\times n}}\;\;\underbrace{\begin{pmatrix}\mathbf{A}^{i-1}\mathbf{G} & \mathbf{A}^{i-2}\mathbf{G} & \cdots & \mathbf{A}\mathbf{G} & \mathbf{G}\end{pmatrix}}_{\boldsymbol{\mathcal{C}}_i \,\in\, \mathbb{R}^{n\times li}}
+\mathbf{T}_{1|i} \;=\; \underbrace{
+    \begin{pmatrix}
+        \mathbf{C}\\
+        \mathbf{C}\mathbf{A}\\
+        \vdots\\
+        \mathbf{C}\mathbf{A}^{i-1}
+        \end{pmatrix}
+        }_{\boldsymbol{\mathcal{O}}_i \,\in\, \mathbb{R}^{pq\times n}}\;\;\underbrace{\begin{pmatrix}\mathbf{A}^{i-1}\mathbf{G} & \mathbf{A}^{i-2}\mathbf{G} & \cdots & \mathbf{A}\mathbf{G} & \mathbf{G}\end{pmatrix}}_{\boldsymbol{\mathcal{C}}_i \,\in\, \mathbb{R}^{n\times pq}}
 \]
-where $n$ is the number of modes in the system.
+where $n, p, q$ are the number of modes in the system, the dimensionality of the system state and the number of measurement channels resp.
 
-The core idea of SSI-COV is to use SVD to decompose $\mathbf{T}_{1|i} \approx \mathbf{U}\mathbf{S}\mathbf{V}^T = (\mathbf{U}\mathbf{S}^{1/2})(\mathbf{S}^{1/2}\mathbf{V}^T)$ where the equality is approximate as we only keep the top $n$ singular values, and $\mathbf{S}^{1/2}$ denotes the matrix obtained from $\mathbf{S}$ by taking $\sqrt{\cdot}$ of each element.
+The core idea of SSI-COV is to use SVD to decompose $\mathbf{T}_{1|i} \approx \mathbf{U}\mathbf{S}\mathbf{V}^T = (\mathbf{U}\mathbf{S}^{1/2})(\mathbf{S}^{1/2}\mathbf{V}^T)$ where the equality is approximate only the top $n$ singular values are kept, and $\mathbf{S}^{1/2}$ is the matrix obtained from $\mathbf{S}$ by taking $\sqrt{\cdot}$ of each element.
 
 We then approximate $\mathcal{O}_i \approx \mathbf{U}\mathbf{S}^{1/2}$, which immediately yields an approximation of $\mathbf{C}$ (from the first block of $\mathcal{O}_i$) and a linear system which can be solved for $\mathbf{A}$ (by considering the relationship between blocks of $\mathcal{O}_i$).
 
-Note that one prerequisite for applying SSI-COV is to know in advance the number of modes. Since this is an unknown, implementations typically perform the analysis for multiple values of $n$, and then allow the user to choose the most plausible $n$ through a visualization called a stabilization diagram~\cite{Peeters01022000}.
+Note that one prerequisite for applying SSI-COV is to know the number of modes $n$ in advance. Since this is usually an unknown, SSI-COV is typically computed for multiple values of $n$, and the most plausible $n$ is chosen using a stabilization diagram~\cite{Peeters01022000}.
 We opt instead to use MPE plots from FSDD to allow the user to pick $n$ once during setup.
 
 \section{Implementation}\label{sec:practical}
